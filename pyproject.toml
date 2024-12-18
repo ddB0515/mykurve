@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "mykurve"
+version = "0.0.1"
+description = "Unofficial library to retrieve details of mykurve.com account"
+authors = ["Dario Budimir <dario.budimir@gmail.com>"]
+maintainers = ["Dario Budimir <dario.budimir@gmail.com>"]
+license = "Apache License 2.0"
+readme = "README.md"
+homepage = "https://ddb0515.github.io/mykurve"
+repository = "https://github.com/ddB0515/mykurve"
+documentation = "https://github.com/ddB0515/mykurve"
+packages = [
+    { include = "mykurve" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+attr = "^0.3.2"
+
+[tool.poetry.dev-dependencies]
+ruff = "^0.8.3"
+pre-commit = "^4.0.1"
+pre-commit-hooks = "^5.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
