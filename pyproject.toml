@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mykurve"
-version = "0.0.1"
+version = "0.0.0"
 description = "Unofficial library to retrieve details of mykurve.com account"
 authors = ["Dario Budimir <dario.budimir@gmail.com>"]
 maintainers = ["Dario Budimir <dario.budimir@gmail.com>"]
@@ -14,7 +14,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
 attr = "^0.3.2"
 
 [tool.poetry.dev-dependencies]
