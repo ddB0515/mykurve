@@ -1,5 +1,5 @@
 """Parses data from the mykurve API"""
-import requests
+import httpx
 import logging
 from datetime import datetime
 
@@ -16,7 +16,7 @@ class MyKurveApi:
     def __init__(self):
         _LOGGER.debug("MyKurveApi initialised")
 
-    def get_token(self, username: str, password: str) -> Token:
+    async def get_token(self, username: str, password: str) -> Token:
         """ Make a POST requesting the access token and return it """
 
         headers = mykurve_headers.copy()
@@ -30,65 +30,70 @@ class MyKurveApi:
         }
 
         try:
-            response = requests.post(TOKEN, headers=headers, data=data, timeout=5)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(TOKEN, headers=headers, data=data, timeout=5)
+
+                if response.status_code == 200:
+                    token_data_without_mfa = response.json()
+                    return Token(**token_data_without_mfa)
+
+                if response.status_code == 400:
+                    raise NotAuthenticated("Unexpected status code: " + str(response.status_code))
+
+                if response.status_code == 401:
+                    raise AuthenticationFailed("Unexpected status code: " + str(response.status_code))
+
+        except Exception as e:
+            raise RuntimeError('REQUEST [ %s ] failed! err: %s' % ("get_token", e))
+
+    async def get_accounts(self, token: str) -> Accounts:
+        async with httpx.AsyncClient() as client:
+            headers = mykurve_headers.copy()
+            headers["Authorization"] = f"Bearer {token}"
+
+            response = await client.get(CUSTOMER_ACCOUNTS, headers=headers, timeout=3)
 
             if response.status_code == 200:
-                token_data_without_mfa = response.json()
-                return Token(**token_data_without_mfa)
+                accounts_data = response.json()
+                accounts_list = [Account(**account) for account in accounts_data.get("accounts", [])]
+                return Accounts(accounts=accounts_list)
+            raise RuntimeError(f"Failed to retrieve account number: {response.status_code}")
 
-            if response.status_code == 400:
-                raise NotAuthenticated("Unexpected status code: " + str(response.status_code))
+    async def get_account_info(self, token: str, account_number: str) -> AccountInfo:
+        async with httpx.AsyncClient() as client:
+            headers = mykurve_headers.copy()
+            headers["Authorization"] = f"Bearer {token}"
 
-            if response.status_code == 401:
-                raise AuthenticationFailed("Unexpected status code: " + str(response.status_code))
+            response = await client.get(f"{MY_INFORMATION}{account_number}", headers=headers, timeout=3)
 
-        except requests.exceptions.RequestException:
-            raise RuntimeError(f"Failed to retrieve token: {response.status_code}")
+            if response.status_code == 200:
+                account_info = response.json()
+                return AccountInfo(**account_info)
+            raise RuntimeError(f"Failed to retrieve account info: {response.status_code}")
 
-    def get_accounts(self, token: str) -> Accounts:
-        headers = mykurve_headers.copy()
-        headers["Authorization"] = f"Bearer {token}"
+    async def get_dashboard(self, token: str, account_number: str) -> Dashboard:
+        async with httpx.AsyncClient() as client:
+            headers = mykurve_headers.copy()
+            headers["Authorization"] = f"Bearer {token}"
 
-        response = requests.get(CUSTOMER_ACCOUNTS, headers=headers, timeout=3)
+            response = await client.get(f"{DASHBOARD}{account_number}", headers=headers, timeout=3)
 
-        if response.status_code == 200:
-            accounts_data = response.json()
-            accounts_list = [Account(**account) for account in accounts_data.get("accounts", [])]
-            return Accounts(accounts=accounts_list)
-        raise RuntimeError(f"Failed to retrieve account number: {response.status_code}")
+            if response.status_code == 200:
+                dashboard = response.json()
+                return Dashboard(**dashboard)
+            raise RuntimeError(f"Failed to retrieve account info: {response.status_code}")
 
-    def get_account_info(self, token: str, account_number: str) -> AccountInfo:
-        headers = mykurve_headers.copy()
-        headers["Authorization"] = f"Bearer {token}"
+    async def get_consumption_graph(self, token: str, account_number: str, timeRange: TimeRange, page: int) -> ConsumptionGraph:
+        async with httpx.AsyncClient() as client:
+            headers = mykurve_headers.copy()
+            headers["Authorization"] = f"Bearer {token}"
 
-        response = requests.get(f"{MY_INFORMATION}{account_number}", headers=headers, timeout=3)
+            response = await client.get(f"{CONSUMPTION_GRAPH}{account_number}&timeRange={timeRange.value}&page={page}", headers=headers, timeout=3)
 
-        if response.status_code == 200:
-            account_info = response.json()
-            return AccountInfo(**account_info)
-        raise RuntimeError(f"Failed to retrieve account info: {response.status_code}")
-
-    def get_dashboard(self, token: str, account_number: str) -> Dashboard:
-        headers = mykurve_headers.copy()
-        headers["Authorization"] = f"Bearer {token}"
-
-        response = requests.get(f"{DASHBOARD}{account_number}", headers=headers, timeout=3)
-
-        if response.status_code == 200:
-            dashboard = response.json()
-            return Dashboard(**dashboard)
-        raise RuntimeError(f"Failed to retrieve account info: {response.status_code}")
-
-    def get_consumption_graph(self, token: str, account_number: str, timeRange: TimeRange, page: int) -> ConsumptionGraph:
-        headers = mykurve_headers.copy()
-        headers["Authorization"] = f"Bearer {token}"
-
-        response = requests.get(f"{CONSUMPTION_GRAPH}{account_number}&timeRange={timeRange.value}&page={page}", headers=headers, timeout=3)
-
-        if response.status_code == 200:
-            consumption_graph = response.json()
-            return self.parse_dashboard_data(consumption_graph)
-        raise RuntimeError(f"Failed to retrieve account info: {response.status_code}")
+            if response.status_code == 200:
+                consumption_graph = response.json()
+                return self.parse_dashboard_data(consumption_graph)
+            raise RuntimeError(f"Failed to retrieve account info: {response.status_code}")
 
     def parse_dashboard_data(self, consumption_graph):
         # For the consumptionMeter

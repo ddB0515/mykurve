@@ -25,37 +25,25 @@ password = "your_password"
 
 async def main():
     api = MyKurveApi()
-    
-    # Get token
-    token = api.get_token(userName, password)
+
+    token = await api.get_token(userName, password)
     print(token)
 
-    # Get account
-    account = api.get_accounts(token.access_token)
+    account = await api.get_accounts(token.access_token)
     print(account)
 
-    # Get account info
-    account_info = api.get_account_info(token.access_token, account.accounts[0].accountNumber)
+    account_info = await api.get_account_info(token.access_token, account.accounts[0].accountNumber)
     print(account_info)
 
-    # Get dashboard
-    dashboard = api.get_dashboard(token.access_token, account.accounts[0].accountNumber)
+    dashboard = await api.get_dashboard(token.access_token, account.accounts[0].accountNumber)
     print(dashboard)
 
-    #Get consumption hraph data
-    dashboard = api.get_consumption_graph(token.access_token, account.accounts[0].accountNumber, TimeRange.DAY, 0)
+    dashboard = await api.get_consumption_graph(token.access_token, account.accounts[0].accountNumber, TimeRange.DAY, 0)
     print(dashboard)
 
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(main())
-    except KeyboardInterrupt:
-        pass
-    finally:
-        loop.close()
+    asyncio.run(main())
 ```
 
 If you like what I'm doing please support me <br/>
