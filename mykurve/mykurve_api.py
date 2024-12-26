@@ -79,8 +79,48 @@ class MyKurveApi:
             response = await client.get(f"{DASHBOARD}{account_number}", headers=headers, timeout=3)
 
             if response.status_code == 200:
-                dashboard = response.json()
-                return Dashboard(**dashboard)
+                dashboard_json = response.json()
+                # Create the dataclass object
+                tariffs = [Tariff(**tariff) for tariff in dashboard_json['tariffHistory']['tariffs']]
+                tariff_in_force_now = Tariff(**dashboard_json['tariffHistory']['tariffInForceNow'])
+                tariff_history = TariffHistory(tariffs=tariffs, tariffInForceNow=tariff_in_force_now)
+
+                return Dashboard(
+                    customerNumber=dashboard_json["customerNumber"],
+                    accountNumber=dashboard_json["accountNumber"],
+                    primaryConsumerNumber=dashboard_json["primaryConsumerNumber"],
+                    firstName=dashboard_json["firstName"],
+                    lastName=dashboard_json["lastName"],
+                    initials=dashboard_json["initials"],
+                    email=dashboard_json["email"],
+                    creditThreshold=dashboard_json["creditThreshold"],
+                    lastKnownVelocityBalance=dashboard_json["lastKnownVelocityBalance"],
+                    lastKnownVelocityBalanceDate=dashboard_json["lastKnownVelocityBalanceDate"],
+                    lastPayAmount=dashboard_json["lastPayAmount"],
+                    consumptionBalance=dashboard_json["consumptionBalance"],
+                    combinedBalance=dashboard_json["combinedBalance"],
+                    emergencyCreditAllowance=dashboard_json["emergencyCreditAllowance"],
+                    emergencyCreditIsActive=dashboard_json["emergencyCreditIsActive"],
+                    isEmergencyCreditAvailable=dashboard_json["isEmergencyCreditAvailable"],
+                    emergencyCreditActivationDate=dashboard_json["emergencyCreditActivationDate"],
+                    emergencyCreditConsumptionBalanace=dashboard_json["emergencyCreditConsumptionBalanace"],
+                    emergencyCreditRemaining=dashboard_json["emergencyCreditRemaining"],
+                    lastMeterReadingDate=dashboard_json["lastMeterReadingDate"],
+                    lastMeterReading=dashboard_json["lastMeterReading"],
+                    todaysUsage=dashboard_json["todaysUsage"],
+                    todaysUsageCost=dashboard_json["todaysUsageCost"],
+                    valveStatus=dashboard_json["valveStatus"],
+                    payPointNumber=dashboard_json["payPointNumber"],
+                    inHouseDisplaySerialNumber=dashboard_json["inHouseDisplaySerialNumber"],
+                    agedDebtAmount=dashboard_json["agedDebtAmount"],
+                    agedDebtAmountDateTime=dashboard_json["agedDebtAmountDateTime"],
+                    paymentPlan=dashboard_json["paymentPlan"],
+                    paymentPlanActivationDate=dashboard_json["paymentPlanActivationDate"],
+                    amountPaid=dashboard_json["amountPaid"],
+                    tariffHistory=tariff_history,
+                    utility=dashboard_json["utility"],
+                    utilityType=dashboard_json["utilityType"]
+                )
             raise RuntimeError(f"Failed to retrieve account info: {response.status_code}")
 
     async def get_consumption_graph(self, token: str, account_number: str, timeRange: TimeRange, page: int) -> ConsumptionGraph:
