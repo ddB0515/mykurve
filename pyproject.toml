@@ -18,7 +18,7 @@ python = "^3.10"
 attr = "^0.3.2"
 
 [tool.poetry.dev-dependencies]
-ruff = "^0.11.0"
+ruff = "^0.12.1"
 pre-commit = "^4.0.1"
 pre-commit-hooks = "^5.0.0"
 
