@@ -7,10 +7,10 @@ Hope will be useful to someone and if there is any issues (what I think there is
 try to help/fix in mean time
 
 ## Note
-- This will work only if you don't have 2FA enabled (2FA is still **NOT** supported)
-
-### TODO:
-- handle 2FA 
+- If your account has 2FA enabled, pass either `mfa_code` (a code you already
+  generated) or `mfa_secret` (the base32 secret from the QR code shown during 2FA
+  setup) to `get_token()`. With `mfa_secret`, the code is generated for you via TOTP.
+  If 2FA is required and neither is passed, `get_token()` raises `MfaCodeRequired`.
 
 ### How to use 
 
@@ -22,11 +22,12 @@ from mykurve.data_classes import TimeRange
 
 userName = "<your_account>"
 password = "your_password"
+mfaSecret = "<your_2fa_secret>"  # only needed if 2FA is enabled
 
 async def main():
     api = MyKurveApi()
 
-    token = await api.get_token(userName, password)
+    token = await api.get_token(userName, password, mfa_secret=mfaSecret)
     print(token)
 
     account = await api.get_accounts(token.access_token)

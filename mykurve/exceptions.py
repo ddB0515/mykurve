@@ -15,3 +15,7 @@ class ApiException(MyKurveApiException):
 
 class AuthenticationFailed(MyKurveApiException):
     """Authentication failed."""
+
+
+class MfaCodeRequired(MyKurveApiException):
+    """Account requires a 2FA code but none or secret was provided."""

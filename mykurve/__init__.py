@@ -7,6 +7,7 @@ from .exceptions import (
     MyKurveApiException,
     AuthenticationFailed,
     NotAuthenticated,
+    MfaCodeRequired,
 )
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "ApiException",
     "AuthenticationFailed",
     "NotAuthenticated",
+    "MfaCodeRequired",
     "MyKurveApiException",
     "TimeRange",
     "Token",
