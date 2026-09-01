@@ -1,12 +1,14 @@
 """Parses data from the mykurve API"""
 import httpx
 import logging
+import pyotp
 from datetime import datetime
+from typing import Optional
 
 from .const import TOKEN, MY_INFORMATION, DASHBOARD, CUSTOMER_ACCOUNTS, mykurve_headers, CONSUMPTION_GRAPH
 from .data_classes import AccountInfo, Accounts, Account, Token, Dashboard, TimeRange, PagedMeterReading, \
     ConsumptionMeter, Tariff, ConsumptionAverages, TariffHistory, ConsumptionGraph
-from .exceptions import  NotAuthenticated, AuthenticationFailed
+from .exceptions import NotAuthenticated, AuthenticationFailed, MfaCodeRequired
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,8 +18,20 @@ class MyKurveApi:
     def __init__(self):
         _LOGGER.debug("MyKurveApi initialised")
 
-    async def get_token(self, username: str, password: str) -> Token:
-        """ Make a POST requesting the access token and return it """
+    async def get_token(
+        self,
+        username: str,
+        password: str,
+        mfa_secret: Optional[str] = None,
+        mfa_code: Optional[str] = None,
+    ) -> Token:
+        """ Make a POST requesting the access token and return it.
+
+        If the account has 2FA enabled, pass either `mfa_code` (a code you already
+        generated) or `mfa_secret` (the base32 secret from the QR code setup, used
+        to generate the code here via TOTP). If neither is passed and 2FA is
+        required, raises MfaCodeRequired.
+        """
 
         headers = mykurve_headers.copy()
         headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -34,15 +48,33 @@ class MyKurveApi:
                 response = await client.post(TOKEN, headers=headers, data=data, timeout=5)
 
                 if response.status_code == 200:
-                    token_data_without_mfa = response.json()
-                    return Token(**token_data_without_mfa)
-
-                if response.status_code == 400:
-                    raise NotAuthenticated("Unexpected status code: " + str(response.status_code))
+                    return Token(**response.json())
 
                 if response.status_code == 401:
                     raise AuthenticationFailed("Unexpected status code: " + str(response.status_code))
 
+                if response.status_code == 400:
+                    error = response.json()
+                    if error.get("error") == "invalid_grant" and "mfaCode" in error.get("error_description", ""):
+                        code = mfa_code or (pyotp.TOTP(mfa_secret).now() if mfa_secret else None)
+                        if not code:
+                            raise MfaCodeRequired("Account requires a 2FA code: pass mfa_code or mfa_secret")
+
+                        mfa_data = {**data, "mfaCode": code, "rememberMe": "true"}
+                        mfa_response = await client.post(TOKEN, headers=headers, data=mfa_data, timeout=5)
+
+                        if mfa_response.status_code == 200:
+                            return Token(**mfa_response.json())
+
+                        if mfa_response.status_code == 401:
+                            raise AuthenticationFailed("Unexpected status code: " + str(mfa_response.status_code))
+
+                        raise NotAuthenticated("Unexpected status code: " + str(mfa_response.status_code))
+
+                    raise NotAuthenticated("Unexpected status code: " + str(response.status_code))
+
+        except (NotAuthenticated, AuthenticationFailed, MfaCodeRequired):
+            raise
         except Exception as e:
             raise RuntimeError('REQUEST [ %s ] failed! err: %s' % ("get_token", e))
 
